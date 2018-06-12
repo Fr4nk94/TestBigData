@@ -60,58 +60,35 @@ public class Project {
     //B			1.2
     static class MapperColumn extends  Mapper<LongWritable,Text,Text,Text> {
     	
-    	private final int POSITION_OF_SOLVER_FIELD=1;
-    	private final int POSITION_OF_REAL_FIELD=12;
+    	private final int POSITION_OF_SOLVER_FIELD=0;
+    	private final int POSITION_OF_REAL_FIELD=11;
+    	
+    	private int numberOfLine=0;
     	@Override
     	protected void map(LongWritable key, Text value,
     			Mapper<LongWritable, Text, Text, Text>.Context context)
     					throws IOException, InterruptedException {
     
-    		
-    		String line = value.toString();
-			
-    		String[] split=line.split("\t");
-    		
-    		int i=1;
-    		int numberOfFieldsOnTheCSV=18;
-    		String solver=null;
-    		String realTime=null;
-    		for(String s:split)
+    		if(numberOfLine!=0)//it means we are considering the header
     		{
-    		
-    			if(i%numberOfFieldsOnTheCSV==POSITION_OF_SOLVER_FIELD)
-    			{
-    				//it means we are considering the field SOLVER
-    			
-    				//before to assing I make some quality checking
-    				if(!s.equals("") && !s.equals(" ") && !s.equals("Solver"))
-    				{
-    				solver=s;
-    				}
-    			}
-    			
-    			if(i%numberOfFieldsOnTheCSV==POSITION_OF_REAL_FIELD)
-    			{
-    				//it means we are considering the field REAL TIME
-    				
-    				if(!s.equals("Real") && !s.equals("") && !s.equals(" "))
+    			String line=value.toString();
+    					String [] split=line.split("\t");
+    					
+    					String solver=new String(split[POSITION_OF_SOLVER_FIELD]);
+    					String realTime=new String(split[POSITION_OF_REAL_FIELD]);
+    					String result=new String(split[14]);
+    					
+    					if(result.equals("solved"))
     					{
-    						realTime=s;
-    						
-    						Text solverText=new Text();
-    						solverText.set(solver);
-    						
-    						Text realTimeText=new Text();
-    						realTimeText.set(realTime);
-    						context.write(solverText, realTimeText);
+    						context.write(new Text(solver.toString()),new Text(realTime));
     					}
-    			
-    			
-    			}
-    			i=i+1;
     		}
-    	}
+    		
+    		
+    			numberOfLine++;
     	
+    	
+    }
     }
     
     static class ReduceColumn extends Reducer<Text,Text,Text,Text> {
@@ -120,32 +97,40 @@ public class Project {
     			Reducer<Text, Text, Text, Text>.Context context)
     					throws IOException, InterruptedException {
     		
-    		List<Text>listToReturn=new ArrayList<Text>();
+    		StringBuilder val=new StringBuilder();
     		
-    		for(Text value:values)
+    		
+    		List<String>tempList=new ArrayList<>();
+    		
+    		for(Text text:values)
     		{
-    			if(Double.parseDouble(value.toString())>1200.0)
-    			{
-    				listToReturn.add(new Text("1200.0"));
-    			}
-    			else{
-    				listToReturn.add(new Text(value));
-    			}
+    			tempList.add(text.toString());
     		}
     		
-    		Collections.sort(listToReturn);
-    		context.write(solver, new Text(listToReturn.toString()));
+    		Collections.sort(tempList);
+    		Collections.reverse(tempList);
     		
+    		for(String tmpString:tempList)
+    		{
+    			if(Double.parseDouble(tmpString)>1200)
+    			{
+    				val.append(1200+".0");
+    			}
+    			else{
+    				val.append(tmpString);
+    			}
+    			
+    			val.append("\t");
+    		}
+    		
+    		context.write(solver, new Text(val.toString()));
+    			
+    		}
     	}
     	
-    	@Override
-    	protected void cleanup(Reducer<Text, Text, Text, Text>.Context context)
-    			throws IOException, InterruptedException {
-    		
-    		super.cleanup(context);
-    	}
     	
-    }
+    	
+    
 
     
 }
